@@ -11,15 +11,15 @@
 name: Build and deploy Web App
 
 env:
-  AZURE_WEBAPP_NAME: WEBBD2   # Change this to your Azure Web App name
-  AZURE_WEBAPP_PACKAGE_PATH: './vehiculo.Web/Vehiculo.Web'
+  AZURE_WEBAPP_NAME: WEBBD2    # Change this to your Azure Web App name
+  AZURE_WEBAPP_PACKAGE_PATH: './vehiculo.Web'
   DOTNET_VERSION: '8.0'
 
 on:
   push:
     branches: [ "main" ]
     paths:
-      - 'vehiculo.Web/Vehiculo.Web/**'
+      - 'vehiculo.Web/**'
   workflow_dispatch:
 
 permissions:
@@ -46,20 +46,19 @@ jobs:
             ${{ runner.os }}-nuget-
 
       - name: Restore dependencies
-        run: dotnet restore "vehiculo.Web/Vehiculo.Web/Vehiculo.Web.slnx"
+        run: dotnet restore "vehiculo.Web/Vehiculo.Web.slnx"
 
       - name: Build with dotnet
         run: |
-          dotnet build "vehiculo.Web/Vehiculo.Web/Abstracciones/*.csproj" --configuration Release --no-restore
-          dotnet build "vehiculo.Web/Vehiculo.Web/Reglas/*.csproj" --configuration Release --no-restore
-          dotnet build "vehiculo.Web/Vehiculo.Web/Web/*.csproj" --configuration Release --no-restore
-          
+          dotnet build "vehiculo.Web/Abstracciones/Abstracciones.csproj" --configuration Release --no-restore
+          dotnet build "vehiculo.Web/Reglas/Reglas.csproj" --configuration Release --no-restore
+          dotnet build "vehiculo.Web/Web/Web.csproj" --configuration Release --no-restore        
 
       - name: Run tests
-        run: dotnet test "vehiculo.Web/Vehiculo.Web/Vehiculo.Web.slnx" --no-restore --verbosity normal --configuration Release || echo "No tests found or test execution failed"
+        run: dotnet test "vehiculo.Web/Vehiculo.Web.slnx" --no-restore --verbosity normal --configuration Release || echo "No tests found or test execution failed"
 
       - name: dotnet publish
-        run: dotnet publish "vehiculo.Web/Vehiculo.Web/*.csproj" -c Release -o ./publish --no-restore
+        run: dotnet publish "vehiculo.Web/Web/Web.csproj" -c Release -o ./publish --no-restore
 
       - name: Upload artifact for deployment job
         uses: actions/upload-artifact@v4
