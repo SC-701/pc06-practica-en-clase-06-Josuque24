@@ -1,8 +1,10 @@
 using Abstracciones.Interfaces.Reglas;
 using Abstracciones.Modelos;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.Extensions.Options;
 using System.Net;
 using System.Text.Json;
 
@@ -10,37 +12,39 @@ namespace Web.Pages.Vehiculos
 {
     public class AgregarModel : PageModel
     {
-        private readonly IConfiguracion _configuracion;
+        private IConfiguracion _configuracion;
+        [BindProperty]
+        public VehiculoRequest vehiculo { get; set; } = default!;
+        [BindProperty]
+        public List<SelectListItem> marcas { get; set; } = default!;
+        [BindProperty]
+        public List<SelectListItem> modelos { get; set; } = default!;
+        public Guid marcaSeleccionada { get; set; } = default!;
 
         public AgregarModel(IConfiguracion configuracion)
         {
             _configuracion = configuracion;
         }
-        [BindProperty]
-        public VehiculoRequest vehiculo { get; set; }
-        [BindProperty]
-        public List<SelectListItem> marcas { get; set; }
-        [BindProperty]
-        public List<SelectListItem> modelos { get; set; }
-        [BindProperty]
-        public Guid marcaseleccionada { get; set; }
+
         public async Task<ActionResult> OnGet()
         {
-            await ObtenerMarcas();
+            await ObtenerMarcasAsync();
             return Page();
         }
+
         public async Task<ActionResult> OnPost()
         {
             if (!ModelState.IsValid)
                 return Page();
             string endpoint = _configuracion.ObtenerMetodo("ApiEndPoints", "AgregarVehiculo");
             var cliente = new HttpClient();
-            var solicitud = new HttpRequestMessage(HttpMethod.Post, endpoint);
+
             var respuesta = await cliente.PostAsJsonAsync(endpoint, vehiculo);
             respuesta.EnsureSuccessStatusCode();
             return RedirectToPage("./Index");
         }
-        private async Task ObtenerMarcas()
+
+        private async Task ObtenerMarcasAsync()
         {
             string endpoint = _configuracion.ObtenerMetodo("ApiEndPoints", "ObtenerMarcas");
             var cliente = new HttpClient();
@@ -48,18 +52,27 @@ namespace Web.Pages.Vehiculos
 
             var respuesta = await cliente.SendAsync(solicitud);
             respuesta.EnsureSuccessStatusCode();
-            var resultado = await respuesta.Content.ReadAsStringAsync();
-            var opciones = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
-            var resultadodeserializado = JsonSerializer.Deserialize<List<Marca>>(resultado, opciones);
-            marcas = resultadodeserializado.Select(m =>
-            new SelectListItem
+            if (respuesta.StatusCode == HttpStatusCode.OK)
             {
-                Value = m.Id.ToString(),
-                Text = m.Nombre,
+                var resultado = await respuesta.Content.ReadAsStringAsync();
+                var opciones = new JsonSerializerOptions { PropertyNameCaseInsensitive = true };
+                var resultadoDeserializado = JsonSerializer.Deserialize<List<Marca>>(resultado, opciones);
+                marcas = resultadoDeserializado.Select(a =>
+                                  new SelectListItem
+                                  {
+                                      Value = a.Id.ToString(),
+                                      Text = a.Nombre.ToString()
+                                  }).ToList();
             }
-            ).ToList();
         }
-        private async Task<List<Modelo>> ObtenerModelos(Guid marcaId)
+
+        public async Task<JsonResult> OnGetObtenerModelos(Guid marcaId)
+        {
+            var modelos = await ObtenerModelosAsync(marcaId);
+            return new JsonResult(modelos);
+        }
+
+        private async Task<List<Modelo>> ObtenerModelosAsync(Guid marcaId)
         {
             string endpoint = _configuracion.ObtenerMetodo("ApiEndPoints", "ObtenerModelos");
             var cliente = new HttpClient();
@@ -74,11 +87,6 @@ namespace Web.Pages.Vehiculos
                 return JsonSerializer.Deserialize<List<Modelo>>(resultado, opciones);
             }
             return new List<Modelo>();
-        }
-        public async Task<JsonResult> OnGetObtenerModelos(Guid marcaID)
-        {
-            var modelos = await ObtenerModelos(marcaID);
-            return new JsonResult(modelos);
         }
     }
 }
